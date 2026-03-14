@@ -25,7 +25,7 @@ RATIO_THRESHOLD = 0.8      # upvote_ratio がこれ以上のものだけ
 TOP_COMMENTS = 5           # 取得するトップコメント数
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL = "anthropic/claude-haiku-4-5"  # 好きなモデルに変更可
+OPENROUTER_MODEL = "anthropic/claude-sonnet-4-6"  # 好きなモデルに変更可
 OUTPUT_CSV = "reddit_materials.csv"
 
 # ============================================================
