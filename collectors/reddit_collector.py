@@ -165,7 +165,7 @@ def generate_summary(title, content):
   "target_reader": "想定読者（例: 別れたばかりの20代女性）"
 }}"""
 
-    max_tokens = len(prompt) * 3
+    max_tokens = min(len(prompt) * 3, 64000)
     text = call_openrouter(MODEL_SONNET, [{"role": "user", "content": prompt}], max_tokens=max_tokens)
     try:
         start = text.find("{")
