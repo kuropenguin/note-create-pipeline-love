@@ -101,12 +101,11 @@ def is_love_topic(title, body):
 # Step 4: 投稿の全文を .json で取得
 # ============================================================
 
-def fetch_full_post(post_id, subreddit):
+def fetch_full_json(post_id, subreddit):
     url = f"https://www.reddit.com/r/{subreddit}/comments/{post_id}.json"
     resp = requests.get(url, headers=HEADERS)
     resp.raise_for_status()
-    data = resp.json()
-    return data[0]["data"]["children"][0]["data"]
+    return resp.json()
 
 
 # ============================================================
@@ -150,7 +149,7 @@ def save_to_csv(rows):
     filename = f"csv/{datetime.now().strftime('%Y-%m-%d-%H-%M')}.csv"
 
     fieldnames = [
-        "収集日", "subreddit", "タイトル", "本文",
+        "収集日", "subreddit", "タイトル", "内容",
         "ups", "upvote_ratio", "コメント数", "URL",
         "サマリー", "想定読者", "タグ", "バズり具合"
     ]
@@ -198,10 +197,10 @@ def main():
 
             print(f"  ✓ 採用: [{ups} ups] {title[:50]}")
 
-            # 全文取得
+            # .json で全データ取得（投稿+コメント+メタデータすべて）
             time.sleep(1)  # レートリミット対策
-            full_post = fetch_full_post(post_id, subreddit)
-            full_body = full_post.get("selftext", body)
+            full_json = fetch_full_json(post_id, subreddit)
+            full_body = full_json[0]["data"]["children"][0]["data"].get("selftext", body)
 
             # AI要約・想定読者（sonnet）
             summary_data = generate_summary(title, full_body)
@@ -211,7 +210,7 @@ def main():
                 "収集日": datetime.now().strftime("%Y-%m-%d"),
                 "subreddit": subreddit,
                 "タイトル": title,
-                "本文": full_body,
+                "内容": json.dumps(full_json, ensure_ascii=False),
                 "ups": ups,
                 "upvote_ratio": ratio,
                 "コメント数": post.get("num_comments", 0),
