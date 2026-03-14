@@ -1,0 +1,34 @@
+name: Weekly Reddit Collection
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # 毎週月曜 UTC 0:00
+  workflow_dispatch:        # 手動実行も可能
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run collector
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: python collectors/reddit_collector.py
+
+      - name: Commit & push results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "chore: weekly reddit collection $(date +%Y-%m-%d)"
+          git push
