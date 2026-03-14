@@ -152,11 +152,10 @@ def generate_summary(title, body):
             "target_reader": "別れを経験した人",
         }
 
-    # トークン上限を考慮して本文は先頭2000文字に制限
     prompt = f"""以下のReddit投稿（英語）を日本語で分析してください。
 
 タイトル: {title}
-本文: {body[:2000]}
+本文: {body}
 
 以下をJSON形式で返してください（他のテキストは不要）:
 {{
@@ -164,7 +163,8 @@ def generate_summary(title, body):
   "target_reader": "想定読者（例: 別れたばかりの20代女性）"
 }}"""
 
-    text = call_openrouter(MODEL_SONNET, [{"role": "user", "content": prompt}], max_tokens=500)
+    max_tokens = len(prompt) * 3
+    text = call_openrouter(MODEL_SONNET, [{"role": "user", "content": prompt}], max_tokens=max_tokens)
     try:
         start = text.find("{")
         end = text.rfind("}") + 1
