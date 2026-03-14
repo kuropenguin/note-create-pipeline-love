@@ -102,10 +102,43 @@ def is_love_topic(title, body):
 # ============================================================
 
 def fetch_full_json(post_id, subreddit):
-    url = f"https://www.reddit.com/r/{subreddit}/comments/{post_id}.json"
+    url = f"https://www.reddit.com/r/{subreddit}/comments/{post_id}.json?limit=500"
     resp = requests.get(url, headers=HEADERS)
     resp.raise_for_status()
     return resp.json()
+
+
+def extract_comments(node):
+    """コメントツリーを再帰的に抽出する"""
+    result = []
+    if not isinstance(node, dict) or node.get("kind") != "t1":
+        return result
+    d = node["data"]
+    comment = {
+        "author": d.get("author", ""),
+        "body": d.get("body", ""),
+        "ups": d.get("ups", 0),
+        "replies": []
+    }
+    replies = d.get("replies")
+    if isinstance(replies, dict):
+        for child in replies["data"]["children"]:
+            comment["replies"].extend(extract_comments(child))
+    result.append(comment)
+    return result
+
+
+def extract_content(full_json):
+    """記事執筆に必要な情報だけ抽出する"""
+    post_data = full_json[0]["data"]["children"][0]["data"]
+    content = {
+        "author": post_data.get("author", ""),
+        "selftext": post_data.get("selftext", ""),
+        "comments": []
+    }
+    for child in full_json[1]["data"]["children"]:
+        content["comments"].extend(extract_comments(child))
+    return content
 
 
 # ============================================================
@@ -197,20 +230,20 @@ def main():
 
             print(f"  ✓ 採用: [{ups} ups] {title[:50]}")
 
-            # .json で全データ取得（投稿+コメント+メタデータすべて）
+            # .json で全データ取得 → 記事に必要な情報だけ抽出
             time.sleep(1)  # レートリミット対策
             full_json = fetch_full_json(post_id, subreddit)
-            full_body = full_json[0]["data"]["children"][0]["data"].get("selftext", body)
+            content = extract_content(full_json)
 
             # AI要約・想定読者（sonnet）
-            summary_data = generate_summary(title, full_body)
+            summary_data = generate_summary(title, content["selftext"])
             time.sleep(0.5)
 
             row = {
                 "収集日": datetime.now().strftime("%Y-%m-%d"),
                 "subreddit": subreddit,
                 "タイトル": title,
-                "内容": json.dumps(full_json, ensure_ascii=False),
+                "内容": json.dumps(content, ensure_ascii=False),
                 "ups": ups,
                 "upvote_ratio": ratio,
                 "コメント数": post.get("num_comments", 0),
