@@ -26,7 +26,7 @@ TOP_COMMENTS = 5           # 取得するトップコメント数
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL = "anthropic/claude-sonnet-4-6"  # 好きなモデルに変更可
-OUTPUT_CSV = "reddit_materials.csv"
+OUTPUT_CSV = "csv/reddit_materials.csv"
 
 # ============================================================
 # Step 1: Reddit top投稿を取得
