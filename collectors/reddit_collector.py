@@ -145,17 +145,19 @@ def extract_content(full_json):
 # Step 5: AI でサマリー・想定読者を生成（sonnet）
 # ============================================================
 
-def generate_summary(title, body):
+def generate_summary(title, content):
     if not OPENROUTER_API_KEY:
         return {
-            "summary": f"{title}についての投稿。{body[:100]}",
+            "summary": f"{title}についての投稿。{content.get('selftext', '')[:100]}",
             "target_reader": "別れを経験した人",
         }
 
+    content_text = json.dumps(content, ensure_ascii=False)
     prompt = f"""以下のReddit投稿（英語）を日本語で分析してください。
 
 タイトル: {title}
-本文: {body}
+投稿内容（本文・コメント・返信・反応数を含む）:
+{content_text}
 
 以下をJSON形式で返してください（他のテキストは不要）:
 {{
@@ -241,7 +243,7 @@ def main():
             content = extract_content(full_json)
 
             # AI要約・想定読者（sonnet）
-            summary_data = generate_summary(title, content["selftext"])
+            summary_data = generate_summary(title, content)
             time.sleep(0.5)
 
             row = {
