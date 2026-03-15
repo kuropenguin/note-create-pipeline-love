@@ -1,10 +1,9 @@
 """
 Reddit 恋愛記事素材収集スクリプト
-フロー: top取得 → 絞り込み → AI恋愛判定(haiku) → 全文取得 → AI要約・想定読者(sonnet) → CSV保存
+フロー: top取得 → 絞り込み → 恋愛判定(キーワード) → 全文取得 → CSV保存
 """
 
 import requests
-import json
 import csv
 import time
 import os
@@ -22,30 +21,6 @@ HEADERS = {"User-Agent": "note-article-collector/1.0"}
 
 UPS_THRESHOLD = 100        # ups がこれ以上のものだけ
 RATIO_THRESHOLD = 0.8      # upvote_ratio がこれ以上のものだけ
-
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-MODEL_HAIKU = "anthropic/claude-haiku-4-5"
-MODEL_SONNET = "anthropic/claude-sonnet-4-6"
-
-
-# ============================================================
-# OpenRouter API 共通
-# ============================================================
-
-def call_openrouter(model, messages, max_tokens=500):
-    resp = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": model,
-            "max_tokens": max_tokens,
-            "messages": messages
-        }
-    )
-    return resp.json()["choices"][0]["message"]["content"].strip()
 
 
 # ============================================================
@@ -74,27 +49,17 @@ def filter_posts(posts):
 
 
 # ============================================================
-# Step 3: AI で恋愛ネタか判定（haiku）
+# Step 3: 恋愛ネタか判定（キーワードマッチ）
 # ============================================================
 
 def is_love_topic(title, body):
-    if not OPENROUTER_API_KEY:
-        keywords = [
-            "boyfriend", "girlfriend", "partner", "husband", "wife",
-            "dating", "ex", "broke up", "breakup", "relationship",
-            "cheating", "marriage", "love", "crush"
-        ]
-        text = (title + " " + body).lower()
-        return any(k in text for k in keywords)
-
-    prompt = f"""以下のReddit投稿が「恋愛・別れ・人間関係」に関するネタかどうか判断してください。
-タイトル: {title}
-本文（先頭200文字）: {body[:200]}
-
-恋愛・別れ・パートナーシップ・浮気・結婚・片思いに関する内容であれば YES、それ以外は NO と1単語で答えてください。"""
-
-    answer = call_openrouter(MODEL_HAIKU, [{"role": "user", "content": prompt}], max_tokens=10)
-    return "YES" in answer.upper()
+    keywords = [
+        "boyfriend", "girlfriend", "partner", "husband", "wife",
+        "dating", "ex", "broke up", "breakup", "relationship",
+        "cheating", "marriage", "love", "crush"
+    ]
+    text = (title + " " + body).lower()
+    return any(k in text for k in keywords)
 
 
 # ============================================================
@@ -142,38 +107,34 @@ def extract_content(full_json):
 
 
 # ============================================================
-# Step 5: AI でサマリー・想定読者を生成（sonnet）
+# Step 5: コメント整形
 # ============================================================
 
-def generate_summary(title, content):
-    if not OPENROUTER_API_KEY:
-        return {
-            "summary": f"{title}についての投稿。{content.get('selftext', '')[:100]}",
-            "target_reader": "別れを経験した人",
-        }
+def _format_comment_tree(comment, depth=0):
+    """1つのコメントとその返信を再帰的にテキスト化する"""
+    lines = []
+    indent = "  " * depth
+    prefix = f"{indent}└ " if depth > 0 else ""
+    lines.append(f"{prefix}[{comment['author']}] (↑{comment['ups']})")
+    body = comment["body"].strip()
+    for line in body.split("\n"):
+        lines.append(f"{indent}{'  ' if depth > 0 else ''}{line}")
+    lines.append("")
+    for reply in comment.get("replies", []):
+        lines.extend(_format_comment_tree(reply, depth + 1))
+    return lines
 
-    content_text = json.dumps(content, ensure_ascii=False)
-    prompt = f"""以下のReddit投稿（英語）を日本語で分析してください。
 
-タイトル: {title}
-投稿内容（本文・コメント・返信・反応数を含む）:
-{content_text}
-
-以下をJSON形式で返してください（他のテキストは不要）:
-{{
-  "summary": "ここの投稿とコメントを読んで、記事を書く人が背景・感情の核心・読者の反応まで一気に把握できるよう、日本語で5〜7文で詳しくまとめてください",
-  "target_reader": "想定読者（例: 別れたばかりの20代女性）"
-}}"""
-
-    max_tokens = min(len(prompt) * 3, 64000)
-    text = call_openrouter(MODEL_SONNET, [{"role": "user", "content": prompt}], max_tokens=max_tokens)
-    try:
-        start = text.find("{")
-        end = text.rfind("}") + 1
-        return json.loads(text[start:end])
-    except (json.JSONDecodeError, ValueError):
-        print(f"  ⚠ サマリーのパースに失敗、フォールバック使用")
-        return {"summary": text[:300], "target_reader": ""}
+def format_comments_text(comments):
+    """コメントリストをスレッド構造がわかるテキストに変換する"""
+    if not comments:
+        return ""
+    sections = []
+    for i, comment in enumerate(comments, 1):
+        section_lines = [f"━━━ コメント #{i} ━━━"]
+        section_lines.extend(_format_comment_tree(comment))
+        sections.append("\n".join(section_lines))
+    return "\n".join(sections)
 
 
 # ============================================================
@@ -189,7 +150,7 @@ def save_to_csv(rows):
     filename = f"csv/{datetime.now().strftime('%Y-%m-%d-%H-%M')}.csv"
 
     fieldnames = [
-        "収集日", "subreddit", "タイトル", "内容",
+        "収集日", "subreddit", "タイトル", "記事本文", "コメント",
         "ups", "upvote_ratio", "コメント数", "URL",
         "サマリー", "想定読者", "タグ", "バズり具合"
     ]
@@ -231,7 +192,7 @@ def main():
             url = f"https://www.reddit.com{post['permalink']}"
 
             try:
-                # AI判定（haiku）
+                # 恋愛判定（キーワードマッチ）
                 if not is_love_topic(title, body):
                     print(f"  ⏭ スキップ（恋愛外）: {title[:50]}")
                     continue
@@ -243,21 +204,18 @@ def main():
                 full_json = fetch_full_json(post_id, subreddit)
                 content = extract_content(full_json)
 
-                # AI要約・想定読者（sonnet）
-                summary_data = generate_summary(title, content)
-                time.sleep(0.5)
-
                 row = {
                     "収集日": datetime.now().strftime("%Y-%m-%d"),
                     "subreddit": subreddit,
                     "タイトル": title,
-                    "内容": json.dumps(content, ensure_ascii=False),
+                    "記事本文": content["selftext"],
+                    "コメント": format_comments_text(content["comments"]),
                     "ups": ups,
                     "upvote_ratio": ratio,
                     "コメント数": post.get("num_comments", 0),
                     "URL": url,
-                    "サマリー": summary_data.get("summary", ""),
-                    "想定読者": summary_data.get("target_reader", ""),
+                    "サマリー": "",
+                    "想定読者": "",
                     "タグ": "",
                     "バズり具合": "",
                 }

@@ -2,7 +2,7 @@
 
 ## 概要
 
-Reddit の恋愛系サブレディットから人気投稿を収集し、AI で分析した結果を CSV に保存するスクリプト。
+Reddit の恋愛系サブレディットから人気投稿を収集し、CSV に保存するスクリプト。
 note 記事の素材収集を目的とする。
 
 ## 処理フロー
@@ -12,11 +12,11 @@ Step 1: top投稿取得（Reddit API）
   ↓
 Step 2: フィルタリング（ups / upvote_ratio / NSFW除外）
   ↓
-Step 3: 恋愛ネタ判定（Claude Haiku）
+Step 3: 恋愛ネタ判定（キーワードマッチ）
   ↓
 Step 4: 投稿詳細取得（.json エンドポイント → 本文・コメント・返信を再帰抽出）
   ↓
-Step 5: サマリー・想定読者生成（Claude Sonnet）
+Step 5: コメント整形（スレッド構造をテキスト化）
   ↓
 Step 6: CSV保存（日時付きファイル名で上書き防止）
 ```
@@ -40,12 +40,7 @@ Step 6: CSV保存（日時付きファイル名で上書き防止）
 
 ## 使用モデル
 
-| 処理 | モデル | 用途 |
-|---|---|---|
-| 恋愛ネタ判定 | `anthropic/claude-haiku-4-5` | YES/NO の簡易判定（コスト重視） |
-| サマリー・想定読者 | `anthropic/claude-sonnet-4-6` | 日本語で5〜7文の詳細な要約 + 想定読者の分析 |
-
-API は OpenRouter 経由で呼び出す。
+AI API は使用しない。恋愛判定はキーワードマッチで行う。
 
 ## 各ステップの詳細
 
@@ -64,8 +59,7 @@ API は OpenRouter 経由で呼び出す。
 
 ### Step 3: 恋愛ネタ判定 (`is_love_topic`)
 
-- **APIキーあり**: Claude Haiku にタイトル + 本文先頭200文字を渡し、YES/NO で判定
-- **APIキーなし（フォールバック）**: キーワードマッチで簡易判定
+- キーワードマッチで判定
   - キーワード: boyfriend, girlfriend, partner, husband, wife, dating, ex, broke up, breakup, relationship, cheating, marriage, love, crush
 
 ### Step 4: 投稿詳細取得・抽出
@@ -103,13 +97,11 @@ API は OpenRouter 経由で呼び出す。
 - コメントツリーを再帰的に辿り、すべてのコメント・返信・返信の返信を取得
 - 各コメントから `author`, `body`, `ups` を抽出
 
-### Step 5: サマリー・想定読者生成 (`generate_summary`)
+### Step 5: コメント整形 (`format_comments_text`)
 
-- Claude Sonnet に投稿タイトル + 本文先頭2000文字を渡す
-- 出力（JSON形式）:
-  - `summary`: 記事を書く人が背景・感情の核心・読者の反応まで把握できる日本語5〜7文のまとめ
-  - `target_reader`: 想定読者（例: 別れたばかりの20代女性）
-- JSONパース失敗時: AIの応答テキスト先頭300文字をsummaryとして使用（フォールバック）
+- コメントツリーをテキスト形式に変換
+- スレッド区切り（`━━━ コメント #N ━━━`）+ インデントで返信の深さを表現
+- 各コメントに `[ユーザー名] (↑ups)` を表示
 
 ### Step 6: CSV保存 (`save_to_csv`)
 
@@ -124,13 +116,14 @@ API は OpenRouter 経由で呼び出す。
 | 収集日 | 実行日（YYYY-MM-DD） | システム |
 | subreddit | サブレディット名 | Reddit API |
 | タイトル | 投稿タイトル | Reddit API |
-| 内容 | 投稿本文 + 全コメント + 全返信（JSON文字列） | Reddit API → `extract_content` |
+| 記事本文 | 投稿本文（selftext そのまま） | Reddit API |
+| コメント | コメントツリーをスレッド構造テキストに整形 | Reddit API → `format_comments_text` |
 | ups | 投稿のupvote数 | Reddit API |
 | upvote_ratio | upvote比率 | Reddit API |
 | コメント数 | コメント総数 | Reddit API |
 | URL | 投稿のURL | Reddit API |
-| サマリー | 日本語5〜7文の要約 | Claude Sonnet |
-| 想定読者 | 想定されるターゲット読者 | Claude Sonnet |
+| サマリー | （現在空白、後日実装予定） | - |
+| 想定読者 | （現在空白、後日実装予定） | - |
 | タグ | （現在空白、後日実装予定） | - |
 | バズり具合 | （現在空白、後日実装予定） | - |
 
@@ -139,15 +132,14 @@ API は OpenRouter 経由で呼び出す。
 | タイミング | 待機時間 |
 |---|---|
 | 投稿詳細取得の前 | 1秒 |
-| AI要約の後 | 0.5秒 |
 
 ## 環境変数
 
 | 変数名 | 必須 | 説明 |
 |---|---|---|
-| `OPENROUTER_API_KEY` | 任意 | OpenRouter API キー。未設定時はキーワードマッチによるフォールバック動作 |
+現在、環境変数の設定は不要。
 
-`.env` ファイルを `python-dotenv` で自動読み込み。
+`.env` ファイルを `python-dotenv` で自動読み込み（将来の拡張用に残置）。
 
 ## 実行方法
 
