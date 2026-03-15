@@ -6,7 +6,7 @@ allowed-tools: Read, Agent
 
 # 記事レビュースキル
 
-`articles/<slug>/article.md` を4人のAIレビュワーが並列でレビューし、結果を統合する。
+`articles/<slug>/article.md` を5人のAIレビュワーが並列でレビューし、結果を統合する。
 
 ## 手順
 
@@ -14,13 +14,14 @@ allowed-tools: Read, Agent
 
 2. `articles/<slug>/article.md` を読み込む。
 
-3. 以下の4つのレビュワーペルソナファイルを読み込む：
+3. 以下の5つのレビュワーペルソナファイルを読み込む：
    - `.claude/skills/review-article/reviewers/note-guidelines.md`
    - `.claude/skills/review-article/reviewers/ai-detection.md`
    - `.claude/skills/review-article/reviewers/reader-perspective.md`
    - `.claude/skills/review-article/reviewers/female-empathy.md`
+   - `.claude/skills/review-article/reviewers/persona-consistency.md`
 
-4. **Agent ツールで4つのサブエージェントを並列起動する**（1つのレスポンスで4つの Agent 呼び出しを行う）。各エージェントには以下を渡す：
+4. **Agent ツールで5つのサブエージェントを並列起動する**（1つのレスポンスで5つの Agent 呼び出しを行う）。各エージェントには以下を渡す：
    - 記事の全文
    - 記事タイプ（無料 / 有料 / 無料(有料紹介)）— 各レビュワーが記事タイプ別チェック項目を適用するために必要
    - そのレビュワーのペルソナと評価基準（ペルソナファイルの内容をそのまま含める）
@@ -47,7 +48,7 @@ allowed-tools: Read, Agent
 {具体的な箇所を引用しながらのコメント}
 ```
 
-5. 4人全員のフィードバックを受け取ったら、`articles/<slug>/review.md` に統合して保存する。
+5. 5人全員のフィードバックを受け取ったら、`articles/<slug>/review.md` に統合して保存する。
 
 6. **総合判定**を冒頭に記載する：
    - 全員 PASS → `## 総合判定: PASS`
@@ -56,6 +57,6 @@ allowed-tools: Read, Agent
 
 ## 注意事項
 
-- 4つの Agent は**必ず並列**で起動すること（1つのレスポンスで4つの Agent tool call）
+- 5つの Agent は**必ず並列**で起動すること（1つのレスポンスで5つの Agent tool call）
 - 各 Agent には `subagent_type` は指定せず、デフォルトの general-purpose を使う
 - 各 Agent の prompt に記事全文とペルソナの内容を直接埋め込むこと（Agent はファイルを読めない前提で）
