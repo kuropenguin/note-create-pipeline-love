@@ -10,6 +10,7 @@ JSON フォーマット:
   "コンセプト": "...",
   "バズり具合": "...",
   "元ネタRedditタイトル": "...",
+  "記事タイプ": "無料/無料(有料紹介)/有料",
   "作成日": "YYYY-MM-DD"
 }
 """
@@ -23,7 +24,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
 CSV_PATH = os.path.join(PROJECT_ROOT, "data", "article_log.csv")
 
-FIELDNAMES = ["slug", "タイトル", "概要", "コンセプト", "バズり具合", "元ネタRedditタイトル", "作成日"]
+FIELDNAMES = ["slug", "タイトル", "概要", "コンセプト", "バズり具合", "元ネタRedditタイトル", "記事タイプ", "作成日"]
 
 
 def main():
