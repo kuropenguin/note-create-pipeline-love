@@ -26,6 +26,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
 CSV_PATH = os.path.join(PROJECT_ROOT, "data", "reddit_master.csv")
 
+csv.field_size_limit(sys.maxsize)
+
 UPDATE_COLUMNS = ("サマリー", "想定読者", "タグ")
 
 

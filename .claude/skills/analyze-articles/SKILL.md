@@ -1,7 +1,6 @@
 ---
 name: analyze-articles
 description: reddit_master.csv の未分析記事にサマリー・想定読者・タグを付与する
-user-invocable: true
 allowed-tools: Read, Bash(python3 *), Bash(python *), Bash(wc *), Bash(head *)
 ---
 
