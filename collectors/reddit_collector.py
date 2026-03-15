@@ -230,37 +230,41 @@ def main():
             ratio = post["upvote_ratio"]
             url = f"https://www.reddit.com{post['permalink']}"
 
-            # AI判定（haiku）
-            if not is_love_topic(title, body):
-                print(f"  ⏭ スキップ（恋愛外）: {title[:50]}")
+            try:
+                # AI判定（haiku）
+                if not is_love_topic(title, body):
+                    print(f"  ⏭ スキップ（恋愛外）: {title[:50]}")
+                    continue
+
+                print(f"  ✓ 採用: [{ups} ups] {title[:50]}")
+
+                # .json で全データ取得 → 記事に必要な情報だけ抽出
+                time.sleep(1)  # レートリミット対策
+                full_json = fetch_full_json(post_id, subreddit)
+                content = extract_content(full_json)
+
+                # AI要約・想定読者（sonnet）
+                summary_data = generate_summary(title, content)
+                time.sleep(0.5)
+
+                row = {
+                    "収集日": datetime.now().strftime("%Y-%m-%d"),
+                    "subreddit": subreddit,
+                    "タイトル": title,
+                    "内容": json.dumps(content, ensure_ascii=False),
+                    "ups": ups,
+                    "upvote_ratio": ratio,
+                    "コメント数": post.get("num_comments", 0),
+                    "URL": url,
+                    "サマリー": summary_data.get("summary", ""),
+                    "想定読者": summary_data.get("target_reader", ""),
+                    "タグ": "",
+                    "バズり具合": "",
+                }
+                all_rows.append(row)
+            except Exception as e:
+                print(f"  ⚠ エラーでスキップ: {title[:50]} - {e}")
                 continue
-
-            print(f"  ✓ 採用: [{ups} ups] {title[:50]}")
-
-            # .json で全データ取得 → 記事に必要な情報だけ抽出
-            time.sleep(1)  # レートリミット対策
-            full_json = fetch_full_json(post_id, subreddit)
-            content = extract_content(full_json)
-
-            # AI要約・想定読者（sonnet）
-            summary_data = generate_summary(title, content)
-            time.sleep(0.5)
-
-            row = {
-                "収集日": datetime.now().strftime("%Y-%m-%d"),
-                "subreddit": subreddit,
-                "タイトル": title,
-                "内容": json.dumps(content, ensure_ascii=False),
-                "ups": ups,
-                "upvote_ratio": ratio,
-                "コメント数": post.get("num_comments", 0),
-                "URL": url,
-                "サマリー": summary_data.get("summary", ""),
-                "想定読者": summary_data.get("target_reader", ""),
-                "タグ": "",
-                "バズり具合": "",
-            }
-            all_rows.append(row)
 
     save_to_csv(all_rows)
     print(f"\n=== 完了 ===")
