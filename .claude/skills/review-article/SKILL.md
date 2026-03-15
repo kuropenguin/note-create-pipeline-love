@@ -6,7 +6,7 @@ allowed-tools: Read, Agent
 
 # 記事レビュースキル
 
-`articles/<slug>/article.md` を5人のAIレビュワーが並列でレビューし、結果を統合する。
+`articles/<slug>/article.md` を6人のAIレビュワーが並列でレビューし、結果を統合する。
 
 ## 手順
 
@@ -14,14 +14,15 @@ allowed-tools: Read, Agent
 
 2. `articles/<slug>/article.md` を読み込む。
 
-3. 以下の5つのレビュワーペルソナファイルを読み込む：
+3. 以下の6つのレビュワーペルソナファイルを読み込む：
    - `.claude/skills/review-article/reviewers/note-guidelines.md`
    - `.claude/skills/review-article/reviewers/ai-detection.md`
    - `.claude/skills/review-article/reviewers/reader-perspective.md`
    - `.claude/skills/review-article/reviewers/female-empathy.md`
    - `.claude/skills/review-article/reviewers/persona-consistency.md`
+   - `.claude/skills/review-article/reviewers/note-editor.md`
 
-4. **Agent ツールで5つのサブエージェントを並列起動する**（1つのレスポンスで5つの Agent 呼び出しを行う）。各エージェントには以下を渡す：
+4. **Agent ツールで6つのサブエージェントを並列起動する**（1つのレスポンスで6つの Agent 呼び出しを行う）。各エージェントには以下を渡す：
    - 記事の全文
    - 記事タイプ（無料 / 有料 / 無料(有料紹介)）— 各レビュワーが記事タイプ別チェック項目を適用するために必要
    - そのレビュワーのペルソナと評価基準（ペルソナファイルの内容をそのまま含める）
@@ -48,7 +49,7 @@ allowed-tools: Read, Agent
 {具体的な箇所を引用しながらのコメント}
 ```
 
-5. 5人全員のフィードバックを受け取ったら、`articles/<slug>/review.md` に**追記**する（上書きしない。ログとして蓄積する）。
+5. 6人全員のフィードバックを受け取ったら、`articles/<slug>/review.md` に**追記**する（上書きしない。ログとして蓄積する）。
 
 6. 追記するブロックの先頭に日時と総合判定を記載する：
    ```markdown
@@ -66,6 +67,6 @@ allowed-tools: Read, Agent
 
 ## 注意事項
 
-- 5つの Agent は**必ず並列**で起動すること（1つのレスポンスで5つの Agent tool call）
+- 6つの Agent は**必ず並列**で起動すること（1つのレスポンスで6つの Agent tool call）
 - 各 Agent には `subagent_type` は指定せず、デフォルトの general-purpose を使う
 - 各 Agent の prompt に記事全文とペルソナの内容を直接埋め込むこと（Agent はファイルを読めない前提で）
