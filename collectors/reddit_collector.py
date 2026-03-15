@@ -25,6 +25,13 @@ RATIO_THRESHOLD = 0.8      # upvote_ratio がこれ以上のものだけ
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 MODEL_HAIKU = "anthropic/claude-haiku-4-5"
 
+MASTER_CSV = "data/reddit_master.csv"
+FIELDNAMES = [
+    "収集日", "subreddit", "タイトル", "記事本文", "コメント",
+    "ups", "upvote_ratio", "コメント数", "URL",
+    "サマリー", "想定読者", "タグ", "バズり具合"
+]
+
 
 # ============================================================
 # OpenRouter API 共通
@@ -174,6 +181,15 @@ def format_comments_text(comments):
 # Step 6: CSV に保存
 # ============================================================
 
+def load_master_urls():
+    """マスターCSVから収集済みURLの一覧を返す"""
+    if not os.path.exists(MASTER_CSV):
+        return set()
+    with open(MASTER_CSV, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return {row["URL"] for row in reader}
+
+
 def save_to_csv(rows):
     if not rows:
         print("保存するデータがありません")
@@ -182,18 +198,25 @@ def save_to_csv(rows):
     os.makedirs("csv", exist_ok=True)
     filename = f"csv/{datetime.now().strftime('%Y-%m-%d-%H-%M')}.csv"
 
-    fieldnames = [
-        "収集日", "subreddit", "タイトル", "記事本文", "コメント",
-        "ups", "upvote_ratio", "コメント数", "URL",
-        "サマリー", "想定読者", "タグ", "バズり具合"
-    ]
-
     with open(filename, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
         writer.writerows(rows)
 
     print(f"✅ {len(rows)} 件を {filename} に保存しました")
+
+
+def append_to_master(rows):
+    """マスターCSVに新規行を追記する"""
+    if not rows:
+        return
+    file_exists = os.path.exists(MASTER_CSV)
+    with open(MASTER_CSV, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerows(rows)
+    print(f"📋 {len(rows)} 件をマスターCSVに追記しました ({MASTER_CSV})")
 
 
 # ============================================================
@@ -205,6 +228,8 @@ def main():
 
     all_rows = []
     seen_ids = set()
+    master_urls = load_master_urls()
+    print(f"📋 マスターCSVに {len(master_urls)} 件の収集済みURLあり\n")
 
     for subreddit in SUBREDDITS:
         print(f"📡 r/{subreddit} を取得中...")
@@ -223,6 +248,10 @@ def main():
             ups = post["ups"]
             ratio = post["upvote_ratio"]
             url = f"https://www.reddit.com{post['permalink']}"
+
+            if url in master_urls:
+                print(f"  ⏭ スキップ（収集済み）: {title[:50]}")
+                continue
 
             try:
                 # AI判定（haiku）
@@ -258,6 +287,7 @@ def main():
                 continue
 
     save_to_csv(all_rows)
+    append_to_master(all_rows)
     print(f"\n=== 完了 ===")
     print(f"合計 {len(all_rows)} 件の素材を収集しました")
 
