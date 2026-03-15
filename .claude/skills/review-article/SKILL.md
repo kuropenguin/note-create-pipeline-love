@@ -1,6 +1,6 @@
 ---
 name: review-article
-description: 4人のAIレビュワーが並列で記事をレビューする
+description: 8人のAIレビュワーが並列で記事をレビューする
 allowed-tools: Read, Agent
 ---
 
