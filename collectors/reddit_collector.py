@@ -1,6 +1,6 @@
 """
 Reddit 恋愛記事素材収集スクリプト
-フロー: top取得 → 絞り込み → 恋愛判定(キーワード) → 全文取得 → CSV保存
+フロー: top取得 → 絞り込み → AI恋愛判定(haiku) → 全文取得 → CSV保存
 """
 
 import requests
@@ -21,6 +21,29 @@ HEADERS = {"User-Agent": "note-article-collector/1.0"}
 
 UPS_THRESHOLD = 100        # ups がこれ以上のものだけ
 RATIO_THRESHOLD = 0.8      # upvote_ratio がこれ以上のものだけ
+
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+MODEL_HAIKU = "anthropic/claude-haiku-4-5"
+
+
+# ============================================================
+# OpenRouter API 共通
+# ============================================================
+
+def call_openrouter(model, messages, max_tokens=500):
+    resp = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "model": model,
+            "max_tokens": max_tokens,
+            "messages": messages
+        }
+    )
+    return resp.json()["choices"][0]["message"]["content"].strip()
 
 
 # ============================================================
@@ -49,17 +72,27 @@ def filter_posts(posts):
 
 
 # ============================================================
-# Step 3: 恋愛ネタか判定（キーワードマッチ）
+# Step 3: AI で恋愛ネタか判定（haiku）
 # ============================================================
 
 def is_love_topic(title, body):
-    keywords = [
-        "boyfriend", "girlfriend", "partner", "husband", "wife",
-        "dating", "ex", "broke up", "breakup", "relationship",
-        "cheating", "marriage", "love", "crush"
-    ]
-    text = (title + " " + body).lower()
-    return any(k in text for k in keywords)
+    if not OPENROUTER_API_KEY:
+        keywords = [
+            "boyfriend", "girlfriend", "partner", "husband", "wife",
+            "dating", "ex", "broke up", "breakup", "relationship",
+            "cheating", "marriage", "love", "crush"
+        ]
+        text = (title + " " + body).lower()
+        return any(k in text for k in keywords)
+
+    prompt = f"""以下のReddit投稿が「恋愛・別れ・人間関係」に関するネタかどうか判断してください。
+タイトル: {title}
+本文（先頭200文字）: {body[:200]}
+
+恋愛・別れ・パートナーシップ・浮気・結婚・片思いに関する内容であれば YES、それ以外は NO と1単語で答えてください。"""
+
+    answer = call_openrouter(MODEL_HAIKU, [{"role": "user", "content": prompt}], max_tokens=10)
+    return "YES" in answer.upper()
 
 
 # ============================================================
@@ -192,7 +225,7 @@ def main():
             url = f"https://www.reddit.com{post['permalink']}"
 
             try:
-                # 恋愛判定（キーワードマッチ）
+                # AI判定（haiku）
                 if not is_love_topic(title, body):
                     print(f"  ⏭ スキップ（恋愛外）: {title[:50]}")
                     continue

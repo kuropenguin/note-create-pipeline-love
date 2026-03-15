@@ -12,7 +12,7 @@ Step 1: top投稿取得（Reddit API）
   ↓
 Step 2: フィルタリング（ups / upvote_ratio / NSFW除外）
   ↓
-Step 3: 恋愛ネタ判定（キーワードマッチ）
+Step 3: 恋愛ネタ判定（Claude Haiku / キーワードフォールバック）
   ↓
 Step 4: 投稿詳細取得（.json エンドポイント → 本文・コメント・返信を再帰抽出）
   ↓
@@ -40,7 +40,11 @@ Step 6: CSV保存（日時付きファイル名で上書き防止）
 
 ## 使用モデル
 
-AI API は使用しない。恋愛判定はキーワードマッチで行う。
+| 処理 | モデル | 用途 |
+|---|---|---|
+| 恋愛ネタ判定 | `anthropic/claude-haiku-4-5` | YES/NO の簡易判定（コスト重視） |
+
+API は OpenRouter 経由で呼び出す。APIキー未設定時はキーワードマッチでフォールバック。
 
 ## 各ステップの詳細
 
@@ -59,7 +63,8 @@ AI API は使用しない。恋愛判定はキーワードマッチで行う。
 
 ### Step 3: 恋愛ネタ判定 (`is_love_topic`)
 
-- キーワードマッチで判定
+- **APIキーあり**: Claude Haiku にタイトル + 本文先頭200文字を渡し、YES/NO で判定
+- **APIキーなし（フォールバック）**: キーワードマッチで簡易判定
   - キーワード: boyfriend, girlfriend, partner, husband, wife, dating, ex, broke up, breakup, relationship, cheating, marriage, love, crush
 
 ### Step 4: 投稿詳細取得・抽出
@@ -99,9 +104,28 @@ AI API は使用しない。恋愛判定はキーワードマッチで行う。
 
 ### Step 5: コメント整形 (`format_comments_text`)
 
-- コメントツリーをテキスト形式に変換
-- スレッド区切り（`━━━ コメント #N ━━━`）+ インデントで返信の深さを表現
-- 各コメントに `[ユーザー名] (↑ups)` を表示
+コメントツリーをテキスト形式に変換する。
+
+- スレッド区切り: `━━━ コメント #N ━━━`
+- 各コメントのヘッダー: `[ユーザー名] (↑ups)`
+- 返信はインデント（2スペース × 深さ）+ `└` プレフィックスで表現
+
+出力イメージ:
+```
+━━━ コメント #1 ━━━
+[user123] (↑158)
+This is a top-level comment...
+
+  └ [reply_user] (↑44)
+    This is a reply...
+
+    └ [nested_user] (↑12)
+      This is a nested reply...
+
+━━━ コメント #2 ━━━
+[another_user] (↑95)
+Another top-level comment...
+```
 
 ### Step 6: CSV保存 (`save_to_csv`)
 
@@ -137,9 +161,18 @@ AI API は使用しない。恋愛判定はキーワードマッチで行う。
 
 | 変数名 | 必須 | 説明 |
 |---|---|---|
-現在、環境変数の設定は不要。
+| `OPENROUTER_API_KEY` | 任意 | OpenRouter API キー。未設定時はキーワードマッチによるフォールバック動作 |
 
-`.env` ファイルを `python-dotenv` で自動読み込み（将来の拡張用に残置）。
+`.env` ファイルを `python-dotenv` で自動読み込み。
+
+## 依存ライブラリ
+
+| ライブラリ | 用途 |
+|---|---|
+| `requests` | Reddit API への HTTP リクエスト |
+| `python-dotenv` | `.env` ファイルの読み込み |
+
+標準ライブラリ: `csv`, `time`, `os`, `datetime`
 
 ## 実行方法
 
