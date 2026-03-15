@@ -2,3 +2,10 @@
 csv/
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+.python-version
+uv.lock
