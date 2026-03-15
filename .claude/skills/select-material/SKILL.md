@@ -12,7 +12,7 @@ allowed-tools: Read, Bash(python3 *), Bash(head *), Bash(wc *), Bash(mkdir *), B
 
 1. `data/reddit_master.csv` を読み込み、**サマリーが入っている行のみ**を対象とする。
 
-2. `data/article_log.csv` を読み込み、`元ネタRedditタイトル` カラムに記載済みのタイトルと一致する行を候補から除外する（同じ素材の重複記事化を防止）。
+2. `data/article_log.csv` を読み込み、過去に記事化した素材とそのコンセプトを把握する。同じ素材を再度選ぶことは許可するが、過去と**異なる切り口・コンセプト**で企画すること。
 
 3. `$ARGUMENTS` の扱い：
    - キーワード指定あり → そのキーワードに関連する素材をフィルタ
@@ -42,4 +42,4 @@ allowed-tools: Read, Bash(python3 *), Bash(head *), Bash(wc *), Bash(mkdir *), B
 - 元ネタの個人情報（ユーザー名、具体的な地名等）は企画書の段階から匿名化する
 - slug は英数字とハイフンのみ（例：`love-after-breakup`）
 - 既に `articles/` に同名フォルダがある場合は末尾に連番を付ける
-- `data/article_log.csv` に記載済みの素材は自動的にスキップされる
+- 同じ素材の再利用はOKだが、`data/article_log.csv` の過去コンセプトと被らない切り口にすること
